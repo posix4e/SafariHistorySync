@@ -9,13 +9,19 @@ A decentralized Safari iOS extension that tracks browser history and synchronize
 - No central server required
 - Privacy-focused design
 
-## Architecture
+## Repository Structure
 
-The project consists of:
+The repository is organized as follows:
 
-1. **iOS Host App**: A simple iOS app that serves as the container for the Safari extension
-2. **Safari Extension**: The extension that tracks browser history and synchronizes it
-3. **Shared Sync Engine**: A module that handles the decentralized synchronization using Holepunch
+- **SafariHistorySync/**: Contains the Xcode project and all related files
+  - **SafariHistorySync/**: iOS host app
+  - **SafariHistorySyncExtension/**: Safari extension
+  - **Shared/**: Shared code used by both the app and extension
+  - **test/**: Test files for the project
+
+- **Root level**: Contains configuration files for development and CI/CD
+  - **.github/workflows/**: GitHub Actions workflows
+  - **package.json**: NPM configuration (delegates to the Xcode project)
 
 ## Technology Stack
 
@@ -41,14 +47,20 @@ The project consists of:
    ```
    npm install
    ```
-3. Open the Xcode project and build the app
+3. Open the Xcode project in the SafariHistorySync directory and build the app
+
+### Building the Extension
+
+```
+npm run build
+```
 
 ### Testing
 
-Run the sync tests:
+Run all tests:
 
 ```
-node test/sync-test.js
+npm test
 ```
 
 ## How It Works

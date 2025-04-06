@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
   entry: {
@@ -16,9 +17,28 @@ module.exports = {
       "buffer": require.resolve("buffer/"),
       "path": require.resolve("path-browserify"),
       "fs": false,
-      "os": require.resolve("os-browserify/browser")
+      "os": require.resolve("os-browserify/browser"),
+      "sodium-native": false,
+      "utp-native": false,
+      "leveldown": false,
+      "sodium-universal": false
+    },
+    alias: {
+      'sodium-native': 'sodium-javascript',
+      'sodium-universal': 'sodium-javascript'
     }
   },
+  plugins: [
+    // Provide polyfills for Node.js globals
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
+      process: 'process/browser'
+    }),
+    // Ignore native modules
+    new webpack.IgnorePlugin({
+      resourceRegExp: /sodium-native|utp-native|leveldown/
+    })
+  ],
   experiments: {
     topLevelAwait: true
   }

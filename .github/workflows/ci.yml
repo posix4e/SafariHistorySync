@@ -1,0 +1,103 @@
+name: Safari History Sync CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            SafariHistorySync/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          # Install root dependencies
+          npm install
+          
+          # Install Xcode project dependencies
+          cd SafariHistorySync
+          npm install
+          cd ..
+      
+      - name: Build extension
+        run: |
+          cd SafariHistorySync
+          npm run build
+      
+      - name: Run unit tests
+        id: run-unit-tests
+        run: |
+          cd SafariHistorySync
+          npm test
+      
+      - name: Run sync tests with CI flag
+        id: run-sync-tests
+        run: |
+          cd SafariHistorySync
+          CI=true npm run test:sync
+        timeout-minutes: 2  # Set a timeout to prevent hanging
+      
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      
+      - name: Create dummy build artifacts
+        run: |
+          cd SafariHistorySync
+          
+          # Create a build directory
+          mkdir -p build/IPA
+          
+          # Create a dummy IPA for demonstration purposes
+          echo "This is a placeholder IPA file for CI testing" > build/IPA/SafariHistorySync.ipa
+          
+          # Create a README explaining the build process
+          cat > build/IPA/README.txt << EOF
+          Safari History Sync - CI Build
+          
+          This is a placeholder build created during CI testing.
+          
+          In a production environment, you would need:
+          1. A valid Apple Developer account
+          2. Proper code signing certificates
+          3. Provisioning profiles for the app
+          4. Team ID configured in the project
+          
+          For more information on building Safari extensions, see:
+          https://developer.apple.com/documentation/safariservices/safari_app_extensions/building_a_safari_app_extension
+          EOF
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        # Always upload artifacts, even if previous steps failed
+        if: always()
+        with:
+          name: safari-history-sync-artifacts
+          path: |
+            SafariHistorySync/dist/*.bundle.js
+            SafariHistorySync/test/temp-instance-*/*.log
+            SafariHistorySync/test/temp-instance-*/LOG*
+            SafariHistorySync/build/IPA/*
+      
+      # This step would be used in a real deployment scenario
+      # - name: Deploy to App Store
+      #   if: github.ref == 'refs/heads/main'
+      #   run: |
+      #     echo "Deploying to App Store..."
+      #     # Add deployment steps here

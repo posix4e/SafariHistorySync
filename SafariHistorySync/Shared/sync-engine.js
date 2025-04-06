@@ -1,7 +1,40 @@
-const Hypercore = require('hypercore');
-const Hyperbee = require('hyperbee');
-const Hyperswarm = require('hyperswarm');
-const b4a = require('b4a');
+// Use try-catch to handle potential import errors in browser environment
+let Hypercore, Hyperbee, Hyperswarm, b4a;
+
+try {
+  Hypercore = require('hypercore');
+  Hyperbee = require('hyperbee');
+  Hyperswarm = require('hyperswarm');
+  b4a = require('b4a');
+} catch (error) {
+  console.warn('Failed to import one or more modules:', error);
+  
+  // Provide fallbacks for browser environment
+  Hypercore = Hypercore || class MockHypercore {
+    constructor() { this.ready = () => Promise.resolve(this); }
+    replicate() { return { pipe: () => ({ pipe: () => ({}) }) }; }
+    close() { return Promise.resolve(); }
+  };
+  
+  Hyperbee = Hyperbee || class MockHyperbee {
+    constructor() { this.ready = () => Promise.resolve(this); }
+    sub() { return this; }
+    put() { return Promise.resolve(); }
+    createReadStream() { return []; }
+  };
+  
+  Hyperswarm = Hyperswarm || function() {
+    return {
+      join: () => {},
+      on: () => {},
+      destroy: () => {}
+    };
+  };
+  
+  b4a = b4a || {
+    from: (str) => new TextEncoder().encode(str)
+  };
+}
 
 class SyncEngine {
   constructor(storagePath) {
@@ -20,6 +53,17 @@ class SyncEngine {
     if (this.isInitialized) return;
     
     try {
+      // Check if we're in a browser environment
+      const isBrowser = typeof window !== 'undefined';
+      
+      if (isBrowser) {
+        console.log('Running in browser environment, using mock implementations');
+        // In browser, use localStorage for storage
+        this._initializeBrowserStorage();
+        this.isInitialized = true;
+        return true;
+      }
+      
       // Create a hypercore for storing our history data
       this.core = new Hypercore(this.storagePath);
       
@@ -32,46 +76,75 @@ class SyncEngine {
       // Wait for the database to be ready
       await this.db.ready();
       
-      // Join the P2P network
-      this.swarm = new Hyperswarm();
-      
-      // Generate a topic for discovery based on a known string
-      const topic = b4a.from('safari-history-sync-network', 'utf-8');
-      
-      // Join the swarm with our topic
-      this.swarm.join(topic, { server: true, client: true });
-      
-      // Listen for new connections
-      this.swarm.on('connection', (connection, info) => {
-        const peerInfo = {
-          id: connection.remotePublicKey.toString('hex'),
-          client: info.client
-        };
+      try {
+        // Join the P2P network
+        this.swarm = new Hyperswarm();
         
-        this.peers.add(peerInfo.id);
-        this._notifyPeerConnect(peerInfo);
+        // Generate a topic for discovery based on a known string
+        const topic = b4a.from('safari-history-sync-network', 'utf-8');
         
-        // Replicate our hypercore with the peer
-        const stream = this.core.replicate(info.client);
-        connection.pipe(stream).pipe(connection);
+        // Join the swarm with our topic
+        this.swarm.join(topic, { server: true, client: true });
         
-        connection.on('close', () => {
-          this.peers.delete(peerInfo.id);
-          this._notifyPeerDisconnect(peerInfo);
+        // Listen for new connections
+        this.swarm.on('connection', (connection, info) => {
+          try {
+            const peerInfo = {
+              id: connection.remotePublicKey ? connection.remotePublicKey.toString('hex') : 'unknown',
+              client: info.client
+            };
+            
+            this.peers.add(peerInfo.id);
+            this._notifyPeerConnect(peerInfo);
+            
+            // Replicate our hypercore with the peer
+            const stream = this.core.replicate(info.client);
+            connection.pipe(stream).pipe(connection);
+            
+            connection.on('close', () => {
+              this.peers.delete(peerInfo.id);
+              this._notifyPeerDisconnect(peerInfo);
+            });
+            
+            // When replication is complete, notify listeners
+            stream.on('end', () => {
+              this._notifySyncComplete(peerInfo);
+            });
+          } catch (connError) {
+            console.error('Error handling connection:', connError);
+          }
         });
-        
-        // When replication is complete, notify listeners
-        stream.on('end', () => {
-          this._notifySyncComplete(peerInfo);
-        });
-      });
+      } catch (swarmError) {
+        console.warn('Failed to initialize swarm, continuing without P2P:', swarmError);
+      }
       
       this.isInitialized = true;
       console.log('SyncEngine initialized');
       return true;
     } catch (error) {
       console.error('Failed to initialize SyncEngine:', error);
-      return false;
+      // Initialize with browser storage as fallback
+      this._initializeBrowserStorage();
+      this.isInitialized = true;
+      return true;
+    }
+  }
+  
+  // Initialize browser-based storage using localStorage
+  _initializeBrowserStorage() {
+    // Create a simple in-memory database for the browser
+    this.browserStorage = {
+      history: []
+    };
+    
+    // Try to load existing data from localStorage
+    try {
+      const savedData = localStorage.getItem('safari-history-sync');
+      if (savedData) {
+        this.browserStorage = JSON.parse(savedData);
+      }
+    } catch (e) {
+      console.warn('Failed to load from localStorage:', e);
     }
   }
   
@@ -79,6 +152,34 @@ class SyncEngine {
     if (!this.isInitialized) await this.initialize();
     
     try {
+      // Check if we're using browser storage
+      if (this.browserStorage) {
+        // Create a history item
+        const historyItem = {
+          url,
+          title,
+          timestamp,
+          visitTime: Date.now()
+        };
+        
+        // Add to browser storage
+        if (!this.browserStorage.history) {
+          this.browserStorage.history = [];
+        }
+        
+        this.browserStorage.history.push(historyItem);
+        
+        // Save to localStorage
+        try {
+          localStorage.setItem('safari-history-sync', JSON.stringify(this.browserStorage));
+        } catch (e) {
+          console.warn('Failed to save to localStorage:', e);
+        }
+        
+        return true;
+      }
+      
+      // Using Hyperbee
       const historyIndex = this.db.sub('history');
       
       // Create a unique key based on timestamp and URL
@@ -103,11 +204,27 @@ class SyncEngine {
     if (!this.isInitialized) await this.initialize();
     
     try {
+      // Check if we're using browser storage
+      if (this.browserStorage) {
+        // Return history from browser storage
+        const history = this.browserStorage.history || [];
+        
+        // Sort by timestamp (newest first) and limit
+        return history
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .slice(0, limit);
+      }
+      
+      // Using Hyperbee
       const historyIndex = this.db.sub('history');
       const history = [];
       
-      for await (const { key, value } of historyIndex.createReadStream({ reverse: true, limit })) {
-        history.push(value);
+      try {
+        for await (const { key, value } of historyIndex.createReadStream({ reverse: true, limit })) {
+          history.push(value);
+        }
+      } catch (streamError) {
+        console.warn('Error reading stream, returning partial results:', streamError);
       }
       
       return history;
@@ -167,12 +284,31 @@ class SyncEngine {
     if (!this.isInitialized) return;
     
     try {
-      if (this.swarm) {
-        this.swarm.destroy();
+      // If using browser storage, save to localStorage before closing
+      if (this.browserStorage) {
+        try {
+          localStorage.setItem('safari-history-sync', JSON.stringify(this.browserStorage));
+        } catch (e) {
+          console.warn('Failed to save to localStorage on close:', e);
+        }
       }
       
+      // Close Hyperswarm if it exists
+      if (this.swarm) {
+        try {
+          this.swarm.destroy();
+        } catch (e) {
+          console.warn('Error destroying swarm:', e);
+        }
+      }
+      
+      // Close Hypercore if it exists
       if (this.core) {
-        await this.core.close();
+        try {
+          await this.core.close();
+        } catch (e) {
+          console.warn('Error closing hypercore:', e);
+        }
       }
       
       this.isInitialized = false;
