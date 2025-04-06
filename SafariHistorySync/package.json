@@ -10,7 +10,7 @@
     "dev": "webpack --mode development --watch"
   },
   "dependencies": {
-    "@hyperswarm/dht": "^6.6.1",
+    "@hyperswarm/dht": "^6.5.1",
     "hypercore": "^10.18.2",
     "hyperbee": "^2.15.0",
     "hyperswarm": "^4.6.1",
