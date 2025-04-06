@@ -1,7 +1,7 @@
 // Import our shared SyncEngine
 // Note: In a real Safari extension, we'd need to bundle these dependencies
 // This is a simplified version for demonstration
-const SyncEngine = require('../Shared/sync-engine');
+const SyncEngine = require('../../Shared/sync-engine');
 
 // Initialize our sync engine
 const syncEngine = new SyncEngine('./history-storage');
