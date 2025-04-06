@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Safari History Sync</title>
+  <style>
+    body {
+      width: 350px;
+      max-height: 500px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 10px;
+    }
+    h1 {
+      font-size: 16px;
+      margin-top: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #e5e5e5;
+    }
+    .history-item {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .history-item:last-child {
+      border-bottom: none;
+    }
+    .history-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .history-url {
+      color: #666;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-time {
+      color: #999;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+    .status {
+      font-size: 12px;
+      color: #666;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .status-label {
+      font-weight: bold;
+    }
+    .status-value {
+      color: #333;
+    }
+    .connected {
+      color: #4CAF50;
+    }
+    .disconnected {
+      color: #F44336;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    Safari History Sync
+    <div class="header-actions">
+      <button id="refresh-button">Refresh</button>
+      <button id="force-sync">Sync Now</button>
+    </div>
+  </h1>
+  
+  <div id="history-list"></div>
+  
+  <div class="status">
+    <div class="status-row">
+      <span class="status-label">Sync Status:</span>
+      <span id="sync-status" class="status-value">Initializing...</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Peers Connected:</span>
+      <span id="peer-count" class="status-value">0</span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Last Sync:</span>
+      <span id="last-sync-time" class="status-value">Never</span>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
