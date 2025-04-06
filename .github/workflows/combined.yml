@@ -14,53 +14,42 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Set up Node.js for root directory
+    - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: 'package-lock.json'
+        cache-dependency-path: |
+          package-lock.json
+          SafariHistorySync/package-lock.json
     
-    - name: Install root dependencies
-      run: npm install
-    
-    - name: Run sync tests
-      run: npm run test:sync
-      
-    - name: Upload sync test logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: sync-test-logs
-        path: |
-          test/temp-instance-*/*.log
-          test/temp-instance-*/LOG*
-    
-    - name: Set up Node.js for Xcode project
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: 'SafariHistorySync/package-lock.json'
-    
-    - name: Install Xcode project dependencies
+    - name: Install dependencies and build
       run: |
+        # Install root dependencies
+        npm install
+        
+        # Install Xcode project dependencies
         cd SafariHistorySync
         npm install
-    
-    - name: Build extension
-      run: |
-        cd SafariHistorySync
+        
+        # Build extension
         npm run build
+        cd ..
     
-    - name: Run extension tests
+    - name: Run tests
       run: |
+        # Run sync tests
+        npm run test:sync
+        
+        # Run extension tests
         cd SafariHistorySync
         npm test || echo "No tests to run"
     
-    - name: Upload build artifacts
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: extension-bundles
+        name: build-artifacts
         path: |
           SafariHistorySync/dist/*.bundle.js
+          test/temp-instance-*/*.log
+          test/temp-instance-*/LOG*
