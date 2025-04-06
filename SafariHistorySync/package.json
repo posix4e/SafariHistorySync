@@ -6,6 +6,7 @@
   "scripts": {
     "test": "jest",
     "test:sync": "node test/sync-test.js",
+    "test:all": "npm test && npm run test:sync",
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch"
   },

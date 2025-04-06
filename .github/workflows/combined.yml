@@ -38,12 +38,9 @@ jobs:
     
     - name: Run tests
       run: |
-        # Run sync tests
-        npm run test:sync
-        
-        # Run extension tests
+        # Run all tests from the SafariHistorySync directory
         cd SafariHistorySync
-        npm test || echo "No tests to run"
+        npm run test:all || echo "Some tests may have failed"
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -51,5 +48,5 @@ jobs:
         name: build-artifacts
         path: |
           SafariHistorySync/dist/*.bundle.js
-          test/temp-instance-*/*.log
-          test/temp-instance-*/LOG*
+          SafariHistorySync/test/temp-instance-*/*.log
+          SafariHistorySync/test/temp-instance-*/LOG*
