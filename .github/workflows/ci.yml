@@ -40,12 +40,23 @@ jobs:
           npm run build
       
       - name: Run tests
+        id: run-tests
         run: |
           cd SafariHistorySync
-          npm run test:all || echo "Some tests may have failed"
+          npm run test:all
+        # This allows the workflow to continue to the artifact upload step even if tests fail
+        continue-on-error: true
+
+      - name: Check test results
+        if: steps.run-tests.outcome != 'success'
+        run: |
+          echo "::error::Tests failed! Check the test logs for details."
+          exit 1
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
+        # Always upload artifacts, even if previous steps failed
+        if: always()
         with:
           name: safari-history-sync-artifacts
           path: |
